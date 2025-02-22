@@ -2,6 +2,11 @@ package models
 
 import "time"
 
+type Expression struct {
+	// TODO
+	// linked list with node
+}
+
 type Task struct {
 	Id             int           `json:"id"`
 	FirstArgument  float64       `json:"arg1"`
