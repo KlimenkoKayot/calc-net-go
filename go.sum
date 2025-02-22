@@ -1,2 +1,4 @@
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
 github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
+github.com/klimenkokayot/calc-api-go v0.0.0-20250210142532-b1aee47a257b h1:CH/qk3TVTbV4hzP0Ze28Wf8NQ4WUhFk9cuhmRuZ98wc=
+github.com/klimenkokayot/calc-api-go v0.0.0-20250210142532-b1aee47a257b/go.mod h1:45oWtL9v6QbsWlL2exp/xIA9XQb85gcaiicCOewFAU8=

@@ -1,4 +1,4 @@
-package config
+package orchestrator
 
 import (
 	"os"
@@ -8,12 +8,11 @@ import (
 )
 
 type Config struct {
-	Port                  string // порт для запуска сервера
+	Port                  int    // порт для запуска сервера
 	TimeAdditionMs        uint64 // время выполнения операции сложения в миллисекундах
 	TimeSubtractionMs     uint64 // время выполнения операции вычитания в миллисекундах
 	TimeMultiplicationsMs uint64 // время выполнения операции умножения в миллисекундах
 	TimeDivisionsMs       uint64 // время выполнения операции деления в миллисекундах
-	ComputingPower        uint64 // количество горутин Агентов
 }
 
 func NewConfig() (*Config, error) {
@@ -21,9 +20,16 @@ func NewConfig() (*Config, error) {
 		return nil, ErrLoadEnvironment
 	}
 
-	Port := os.Getenv("PORT")
-	if Port == "" {
-		Port = "8080"
+	PortString := os.Getenv("PORT")
+	if PortString == "" {
+		PortString = "8080"
+	}
+	Port, err := strconv.Atoi(PortString)
+	if err != nil {
+		return nil, ErrInvalidVariableType
+	}
+	if Port < 0 {
+		return nil, ErrInvalidPort
 	}
 
 	TimeAdditionString := os.Getenv("TIME_ADDITION_MS")
@@ -74,24 +80,11 @@ func NewConfig() (*Config, error) {
 		return nil, ErrInvalidTime
 	}
 
-	ComputingPowerString := os.Getenv("COMPUTING_POWER")
-	if ComputingPowerString == "" {
-		ComputingPowerString = "4"
-	}
-	ComputingPower, err := strconv.Atoi(ComputingPowerString)
-	if err != nil {
-		return nil, ErrInvalidVariableType
-	}
-	if ComputingPower < 0 {
-		return nil, ErrInvalidComputingValue
-	}
-
 	return &Config{
 		Port,
 		uint64(TimeAdditionMs),
 		uint64(TimeSubtractionMs),
 		uint64(TimeMultiplicationsMs),
 		uint64(TimeDivisionsMs),
-		uint64(ComputingPower),
 	}, nil
 }

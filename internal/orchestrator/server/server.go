@@ -1,9 +1,10 @@
-package server
+package orchestrator
 
 import (
+	"fmt"
 	"net/http"
 
-	"github.com/klimenkokayot/calc-net-go/internal/config"
+	config "github.com/klimenkokayot/calc-net-go/internal/agent/config"
 )
 
 type Server struct {
@@ -22,5 +23,8 @@ func NewServer() (*Server, error) {
 
 func (s *Server) Run() error {
 	mux := http.NewServeMux()
-	// обработчики
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), mux); err != nil {
+		return err
+	}
+	return nil
 }
