@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	"log"
+	"sync"
 	"time"
 
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
@@ -16,11 +18,13 @@ type OrchestratorService struct {
 	TimeMultiplicationsMs time.Duration
 	TimeDivisionsMs       time.Duration
 
-	Tasks       []*models.Task
-	Answers     map[[64]byte]float64
-	Expressions map[[64]byte]*models.Expression
+	Tasks              []*models.Task
+	Answers            map[[64]byte]float64
+	Expressions        map[[64]byte]*models.Expression
+	RequestExpressions [][64]byte
 
 	LastTaskId uint
+	mu         *sync.Mutex
 }
 
 func NewOrchestratorService(config config.Config) *OrchestratorService {
@@ -32,7 +36,9 @@ func NewOrchestratorService(config config.Config) *OrchestratorService {
 		make([]*models.Task, 0),
 		make(map[[64]byte]float64),
 		make(map[[64]byte]*models.Expression),
+		make([][64]byte, 0),
 		0,
+		&sync.Mutex{},
 	}
 }
 
@@ -61,6 +67,26 @@ func (s *OrchestratorService) NewExpression(expression string) (*models.Expressi
 		Hash: utils.ExpressionToSHA512(expression),
 		List: list,
 	}, nil
+}
+
+func (s *OrchestratorService) AddExpression(expression string) error {
+	log.Printf("got expression: %s\n", expression)
+	value, err := s.NewExpression(expression)
+	if err != nil {
+		log.Printf("error: %v\n", err)
+		return err
+	}
+	s.mu.Lock()
+	_, ansFound := s.Answers[value.Hash]
+	_, expFound := s.Expressions[value.Hash]
+	if !ansFound && !expFound {
+		log.Printf("map append: %v\n", value.Hash)
+		s.Expressions[value.Hash] = value
+		s.RequestExpressions = append(s.RequestExpressions, value.Hash)
+		// тут можно начать разбивать задачи по таскам
+	}
+	s.mu.Unlock()
+	return nil
 }
 
 func (s *OrchestratorService) OperationTime(operation rune) (time.Duration, error) {
