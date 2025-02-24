@@ -2,9 +2,12 @@ package models
 
 import "time"
 
-type Expression struct {
-	// TODO
-	// linked list with node
+type Expression []Symbol
+
+type Symbol struct {
+	Value       float64
+	Operation   rune
+	IsOperation bool
 }
 
 type Task struct {

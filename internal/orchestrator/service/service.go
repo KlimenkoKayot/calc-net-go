@@ -5,6 +5,7 @@ import (
 
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
 	"github.com/klimenkokayot/calc-net-go/internal/shared/models"
+	"github.com/klimenkokayot/calc-net-go/pkg/rpn"
 )
 
 type OrchestratorService struct {
@@ -25,4 +26,23 @@ func NewOrchestratorService(config config.Config) *OrchestratorService {
 		make([]models.Expression, 0),
 		make([]models.Task, 0),
 	}
+}
+
+func (s *OrchestratorService) ConvertExpression(expression string) (*models.Expression, error) {
+	valuesIntergace, err := rpn.ExpressionToRPN(expression)
+	if err != nil {
+		return nil, err
+	}
+	result := models.Expression{}
+	for _, val := range valuesIntergace {
+		switch val.(type) {
+		case string:
+			result = append(result, models.Symbol{IsOperation: true, Operation: []rune(val.(string))[0]})
+		case float64:
+			result = append(result, models.Symbol{Value: val.(float64)})
+		default:
+			return nil, ErrInvalidSymbolRPN
+		}
+	}
+	return &result, nil
 }
