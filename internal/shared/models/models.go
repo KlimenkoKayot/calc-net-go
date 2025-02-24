@@ -1,21 +1,24 @@
 package models
 
-import "time"
+import (
+	"time"
 
-type Expression []Symbol
+	"github.com/klimenkokayot/calc-net-go/internal/shared/customList"
+)
 
-type Symbol struct {
-	Value       float64
-	Operation   rune
-	IsOperation bool
+type Expression struct {
+	Hash [64]byte
+	List *customList.LinkedList
 }
 
 type Task struct {
-	Id             int           `json:"id"`
+	Id             uint          `json:"id"`
 	FirstArgument  float64       `json:"arg1"`
 	SecondArgument float64       `json:"arg2"`
 	Operation      rune          `json:"operation"`
 	OperationTime  time.Duration `json:"operation_time"`
+	StartListNode  *customList.Node
+	ExpressionId   [64]byte
 }
 
 type Result struct {
