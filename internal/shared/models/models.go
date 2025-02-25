@@ -7,8 +7,9 @@ import (
 )
 
 type Expression struct {
-	Hash [64]byte
-	List *customList.LinkedList
+	Hash   [64]byte
+	List   *customList.LinkedList
+	Status string
 }
 
 type Task struct {
