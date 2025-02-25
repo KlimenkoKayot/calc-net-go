@@ -64,17 +64,18 @@ func (s *OrchestratorService) NewExpression(expression string) (*models.Expressi
 		}
 	}
 	return &models.Expression{
-		Hash: utils.ExpressionToSHA512(expression),
-		List: list,
+		Hash:   utils.ExpressionToSHA512(expression),
+		List:   list,
+		Status: "В очереди.",
 	}, nil
 }
 
-func (s *OrchestratorService) AddExpression(expression string) error {
+func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error) {
 	log.Printf("got expression: %s\n", expression)
 	value, err := s.NewExpression(expression)
 	if err != nil {
 		log.Printf("error: %v\n", err)
-		return err
+		return [64]byte{}, err
 	}
 	s.mu.Lock()
 	_, ansFound := s.Answers[value.Hash]
@@ -86,7 +87,7 @@ func (s *OrchestratorService) AddExpression(expression string) error {
 		// тут можно начать разбивать задачи по таскам
 	}
 	s.mu.Unlock()
-	return nil
+	return value.Hash, nil
 }
 
 func (s *OrchestratorService) OperationTime(operation rune) (time.Duration, error) {
