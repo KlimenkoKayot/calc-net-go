@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
 	handler "github.com/klimenkokayot/calc-net-go/internal/orchestrator/server/handler"
 )
@@ -24,9 +25,12 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) Run() error {
-	mux := http.NewServeMux()
+	mux := mux.NewRouter()
 	handler := handler.NewOrchestratorHandler(*s.Config)
 	mux.HandleFunc("/api/v1/calculate", handler.NewExpression)
+	mux.HandleFunc("/api/v1/expressions", handler.Expressions)
+	mux.HandleFunc("/api/v1/expressions/:{id}", handler.Expression)
+
 	log.Printf("Server started at port :%d\n", s.Config.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), mux); err != nil {
 		return err
