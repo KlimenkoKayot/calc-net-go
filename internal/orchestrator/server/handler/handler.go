@@ -132,3 +132,21 @@ func (h *OrchestratorHandler) Expression(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusNotFound)
 }
+
+func (h *OrchestratorHandler) GetTask(w http.ResponseWriter, r *http.Request) {
+	task, err := h.Service.GetTask()
+	if err == service.ErrHaveNoTask {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	data, _ := json.Marshal(task)
+	w.WriteHeader(http.StatusOK)
+	io.Writer(w).Write(data)
+}
+
+func (h *OrchestratorHandler) PostTask(w http.ResponseWriter, r *http.Request) {
+
+}

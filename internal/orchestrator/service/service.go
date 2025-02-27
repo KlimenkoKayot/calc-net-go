@@ -84,7 +84,11 @@ func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error)
 		log.Printf("map append: %v\n", value.Hash)
 		s.Expressions[value.Hash] = value
 		s.RequestExpressions = append(s.RequestExpressions, value.Hash)
-		// тут можно начать разбивать задачи по таскам
+		tasks, err := s.FindNewTasks(value)
+		if err != nil {
+			return [64]byte{}, err
+		}
+		s.Tasks = append(s.Tasks, tasks...)
 	}
 	s.mu.Unlock()
 	return value.Hash, nil
@@ -105,8 +109,8 @@ func (s *OrchestratorService) OperationTime(operation rune) (time.Duration, erro
 	}
 }
 
-func (s *OrchestratorService) FindNewTasks(expression models.Expression) (*[]models.Task, error) {
-	tasks := []models.Task{}
+func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*models.Task, error) {
+	tasks := []*models.Task{}
 	cur := expression.List.Root
 	var (
 		last     *customList.Node
@@ -118,7 +122,7 @@ func (s *OrchestratorService) FindNewTasks(expression models.Expression) (*[]mod
 			if err != nil {
 				return nil, err
 			}
-			tasks = append(tasks, models.Task{
+			tasks = append(tasks, &models.Task{
 				Id:             s.LastTaskId,
 				FirstArgument:  cur.Data.Value,
 				SecondArgument: previous.Data.Value,
@@ -135,5 +139,27 @@ func (s *OrchestratorService) FindNewTasks(expression models.Expression) (*[]mod
 			previous = cur
 		}
 	}
-	return &tasks, nil
+	return tasks, nil
+}
+
+func (s *OrchestratorService) GetTask() (*models.Task, error) {
+	task := &models.Task{}
+	s.mu.Lock()
+	if len(s.Tasks) == 0 {
+		if len(s.Expressions) == 0 {
+			return nil, ErrHaveNoTask
+		} else if len(s.RequestExpressions) == 0 {
+			return nil, ErrEmptyRequestList
+		}
+		hash := s.RequestExpressions[0]
+		tasks, err := s.FindNewTasks(s.Expressions[hash])
+		if err != nil {
+			return nil, err
+		}
+		s.Tasks = append(s.Tasks, tasks...)
+	}
+	task = s.Tasks[0]
+	s.Tasks = s.Tasks[1:]
+	s.mu.Unlock()
+	return task, nil
 }
