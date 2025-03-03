@@ -31,8 +31,8 @@ func (s *Server) Run() error {
 	mux.HandleFunc("/api/v1/calculate", handler.NewExpression)
 	mux.HandleFunc("/api/v1/expressions", handler.Expressions)
 	mux.HandleFunc("/api/v1/expressions/:{id}", handler.Expression)
-	mux.HandleFunc("/internal/task", handler.GetTask).Methods("GET")
 	mux.HandleFunc("/internal/task", handler.PostTask).Methods("POST")
+	mux.HandleFunc("/internal/task", handler.GetTask).Methods("GET")
 	// mux.HandleFunc("/internal/task", handler.TaskAnswer).Methods("POST")
 
 	log.Printf("Server started at port :%d\n", s.Config.Port)

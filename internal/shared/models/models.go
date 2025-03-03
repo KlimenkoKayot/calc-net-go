@@ -7,9 +7,13 @@ import (
 )
 
 type Expression struct {
-	Hash   [64]byte
-	List   *customList.LinkedList
-	Status string
+	Id     string  `json:"id,omitempty"`
+	Status string  `json:"status,omitempty"`
+	Result float64 `json:"result,omitempty"`
+	Value  string  `json:"expression,omitempty"`
+
+	Hash [64]byte               `json:"-"`
+	List *customList.LinkedList `json:"-"`
 }
 
 type Task struct {
@@ -18,12 +22,15 @@ type Task struct {
 	SecondArgument float64       `json:"arg2"`
 	Operation      rune          `json:"operation"`
 	OperationTime  time.Duration `json:"operation_time"`
-	StartListNode  *customList.Node
-	ExpressionId   [64]byte
+}
+
+type TaskResult struct {
+	Id     uint    `json:"id"`
+	Result float64 `json:"result"`
 }
 
 type Result struct {
-	Id     int     `json:"id"`
+	Id     uint    `json:"id"`
 	Status string  `json:"status"`
 	Result float64 `json:"result"`
 }

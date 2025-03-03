@@ -5,8 +5,9 @@ type LinkedList struct {
 }
 
 type Node struct {
-	Next *Node
-	Data NodeData
+	Next     *Node
+	Data     *NodeData
+	InAction bool
 }
 
 type NodeData struct {
@@ -21,7 +22,7 @@ func NewLinkedList() *LinkedList {
 	}
 }
 
-func (list *LinkedList) Add(data NodeData) error {
+func (list *LinkedList) Add(data *NodeData) error {
 	list.Root = &Node{
 		Next: list.Root,
 		Data: data,
@@ -29,7 +30,7 @@ func (list *LinkedList) Add(data NodeData) error {
 	return nil
 }
 
-func (list *LinkedList) Replace(newData NodeData, cur *Node, newNext *Node) error {
+func (list *LinkedList) Replace(newData *NodeData, cur *Node, newNext *Node) error {
 	cur.Data = newData
 	cur.Next = newNext
 	return nil

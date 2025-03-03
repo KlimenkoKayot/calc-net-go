@@ -1,24 +1,34 @@
 package agent
 
 import (
-	"flag"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port           int
-	ComputingPower uint64 // количество горутин Агентов
+	OrchestratorPort int
+	ComputingPower   uint64 // количество горутин внутри агента
+	AgentSleepTime   time.Duration
 }
 
 func NewConfig() (*Config, error) {
-	Port := flag.Int("port", 8080, "Port to run the Agent on")
-	flag.Parse()
-
 	if err := godotenv.Load(); err != nil {
 		return nil, ErrLoadEnvironment
+	}
+
+	PortString := os.Getenv("PORT")
+	if PortString == "" {
+		PortString = "8080"
+	}
+	Port, err := strconv.Atoi(PortString)
+	if err != nil {
+		return nil, ErrInvalidVariableType
+	}
+	if Port < 0 {
+		return nil, ErrInvalidPort
 	}
 
 	ComputingPowerString := os.Getenv("COMPUTING_POWER")
@@ -33,8 +43,21 @@ func NewConfig() (*Config, error) {
 		return nil, ErrInvalidComputingValue
 	}
 
+	sleepTimeString := os.Getenv("AGENT_SLEEP_TIME")
+	if ComputingPowerString == "" {
+		ComputingPowerString = "100"
+	}
+	sleepTime, err := strconv.Atoi(sleepTimeString)
+	if err != nil {
+		return nil, ErrInvalidVariableType
+	}
+	if sleepTime < 0 {
+		return nil, ErrInvalidTime
+	}
+
 	return &Config{
-		*Port,
+		Port,
 		uint64(ComputingPower),
+		time.Duration(time.Millisecond * time.Duration(sleepTime)),
 	}, nil
 }

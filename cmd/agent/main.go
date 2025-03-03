@@ -1,5 +1,17 @@
 package main
 
-func main() {
+import (
+	"log"
 
+	agent "github.com/klimenkokayot/calc-net-go/internal/agent"
+)
+
+func main() {
+	agent, err := agent.NewAgent()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := agent.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
