@@ -9,12 +9,14 @@ import (
 )
 
 type Config struct {
-	OrchestratorPort int
-	ComputingPower   uint64 // количество горутин внутри агента
-	AgentSleepTime   time.Duration
+	OrchestratorPort int           // Порт, на котором запускается оркестратор
+	ComputingPower   uint64        // Количество горутин внутри агента
+	AgentSleepTime   time.Duration // Задержка между запросами агента в оркестратор
 }
 
+// Создание нового конфига
 func NewConfig() (*Config, error) {
+	// Загрузка переменных среды
 	if err := godotenv.Load(); err != nil {
 		return nil, ErrLoadEnvironment
 	}

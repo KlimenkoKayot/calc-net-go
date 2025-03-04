@@ -10,13 +10,15 @@ import (
 	worker "github.com/klimenkokayot/calc-net-go/internal/agent/worker"
 )
 
+// Методы бизнес-логики агента
 type AgentService struct {
-	OrchestratorUrl string
-	AgentSleepTime  time.Duration
-	ComputingPower  uint64
+	OrchestratorUrl string        // Адрес оркестратора
+	AgentSleepTime  time.Duration // Задержка между запросами в оркестратор
+	ComputingPower  uint64        // Кол-во горутин, которые запускаются внутри агента
 	wg              *sync.WaitGroup
 }
 
+// Новый агент, конфиг обязателен
 func NewAgentService(config config.Config) *AgentService {
 	return &AgentService{
 		fmt.Sprintf("http://127.0.0.1:%d/internal/task", config.OrchestratorPort),
@@ -26,6 +28,7 @@ func NewAgentService(config config.Config) *AgentService {
 	}
 }
 
+// Запуск нового воркера
 func (s *AgentService) StartNewWorker() error {
 	log.Println("Запущен новый worker...")
 	s.wg.Add(1)
@@ -37,6 +40,7 @@ func (s *AgentService) StartNewWorker() error {
 	return nil
 }
 
+// Старт сервиса, запускает воркеров в отдельных горутинах
 func (s *AgentService) Run() error {
 	for i := 0; i < int(s.ComputingPower); i++ {
 		s.StartNewWorker()

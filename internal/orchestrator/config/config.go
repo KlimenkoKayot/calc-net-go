@@ -7,6 +7,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Конфиг для работы оркестратора
 type Config struct {
 	Port                  int    // порт для запуска сервера
 	TimeAdditionMs        uint64 // время выполнения операции сложения в миллисекундах
@@ -15,6 +16,7 @@ type Config struct {
 	TimeDivisionsMs       uint64 // время выполнения операции деления в миллисекундах
 }
 
+// Создает новый конфиг, получает значения переменных из .env
 func NewConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, ErrLoadEnvironment

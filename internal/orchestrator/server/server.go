@@ -10,11 +10,14 @@ import (
 	handler "github.com/klimenkokayot/calc-net-go/internal/orchestrator/server/handler"
 )
 
+// Структура сервера
 type Server struct {
 	Config *config.Config
 }
 
+// Создание нового экземпляра сервера
 func NewServer() (*Server, error) {
+	// Создаем конфиг
 	config, err := config.NewConfig()
 	if err != nil {
 		return nil, err
@@ -24,16 +27,17 @@ func NewServer() (*Server, error) {
 	}, nil
 }
 
+// Запуск сервера, использует роутер gorilla/mux
 func (s *Server) Run() error {
 	mux := mux.NewRouter()
 	handler := handler.NewOrchestratorHandler(*s.Config)
 
+	// Разные endpoint`ы
 	mux.HandleFunc("/api/v1/calculate", handler.NewExpression)
 	mux.HandleFunc("/api/v1/expressions", handler.Expressions)
 	mux.HandleFunc("/api/v1/expressions/:{id}", handler.Expression)
 	mux.HandleFunc("/internal/task", handler.PostTask).Methods("POST")
 	mux.HandleFunc("/internal/task", handler.GetTask).Methods("GET")
-	// mux.HandleFunc("/internal/task", handler.TaskAnswer).Methods("POST")
 
 	log.Printf("Server started at port :%d\n", s.Config.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), mux); err != nil {

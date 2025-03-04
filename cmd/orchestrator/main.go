@@ -7,10 +7,12 @@ import (
 )
 
 func main() {
+	// Создаем новый сервер aka оркестратора
 	server, err := orchestrator.NewServer()
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Запуск созданного сервера
 	err = server.Run()
 	if err != nil {
 		log.Fatal(err)

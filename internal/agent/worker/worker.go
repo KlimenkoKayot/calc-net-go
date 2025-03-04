@@ -9,12 +9,14 @@ import (
 	"github.com/klimenkokayot/calc-net-go/internal/shared/models"
 )
 
+// Воркер решает задачи, которые получает от оркестратора
 type Worker struct {
-	Client    *http.Client
-	URL       string
-	SleepTime time.Duration
+	Client    *http.Client  // Клиент для выполнения запросов
+	URL       string        // Адрес оркестратора для запросов
+	SleepTime time.Duration // Задержка между запросами агента
 }
 
+// Создаем нового воркера, нужен адрес оркестратора и задержка из .env
 func NewWorker(url string, sleepTime time.Duration) *Worker {
 	return &Worker{
 		&http.Client{},
@@ -23,6 +25,7 @@ func NewWorker(url string, sleepTime time.Duration) *Worker {
 	}
 }
 
+// Решение полученной задачи
 func (w *Worker) Solve(task *models.Task) *models.TaskResult {
 	log.Printf("Worker получил новую подзадачу c id: %d\n", task.Id)
 	time.Sleep(time.Millisecond * task.OperationTime)
@@ -44,20 +47,18 @@ func (w *Worker) Solve(task *models.Task) *models.TaskResult {
 	}
 }
 
+// Попытка получения подзадачи и ее решения
 func (w *Worker) Process() error {
-	for {
-		task, err := transport.GetTask(w.Client, w.URL)
-		if err != nil {
-			return err
-		}
-		result := w.Solve(task)
-		err = transport.PostTask(w.Client, w.URL, result)
-		if err != nil {
-			return err
-		}
+	task, err := transport.GetTask(w.Client, w.URL)
+	if err != nil {
+		return err
 	}
+	result := w.Solve(task)
+	err = transport.PostTask(w.Client, w.URL, result)
+	return err
 }
 
+// Воркер начинает работу, GET -> SOLVE -> POST -> SLEEP
 func (w *Worker) Run() error {
 	for {
 		err := w.Process()

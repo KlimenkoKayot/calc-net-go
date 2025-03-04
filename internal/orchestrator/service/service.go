@@ -13,22 +13,24 @@ import (
 	"github.com/klimenkokayot/calc-net-go/pkg/rpn"
 )
 
+// Структура сервиса, для удобства некоторые переменные из конфига перенесены сюда
 type OrchestratorService struct {
-	TimeAdditionMs        time.Duration
-	TimeSubtractionMs     time.Duration
-	TimeMultiplicationsMs time.Duration
-	TimeDivisionsMs       time.Duration
+	TimeAdditionMs        time.Duration // Время решение задачи сложения
+	TimeSubtractionMs     time.Duration // Время решения задачи деления
+	TimeMultiplicationsMs time.Duration // Время решения задачи умножения
+	TimeDivisionsMs       time.Duration // Время решения задачи вычитания
 
-	TaskIdUpdate       map[uint]*customList.Node
-	Tasks              []*models.Task
-	Answers            map[[64]byte]float64
-	Expressions        map[[64]byte]*models.Expression
-	RequestExpressions [][64]byte
+	TaskIdUpdate       map[uint]*customList.Node       // Словарь, который по id подзадачи может найти указатель на элемент RPN forward list
+	Tasks              []*models.Task                  // Список подзадач для решения
+	Answers            map[[64]byte]float64            // Ответы на разные задачи, которые были обработаны ранее
+	Expressions        map[[64]byte]*models.Expression // Словарь выражений по хэшу
+	RequestExpressions [][64]byte                      // Список всех полученных запросов на подсчет в порядке времени получения запроса
 
-	LastTaskId uint
+	LastTaskId uint // Счетчик для индексации решения подзадач
 	mu         *sync.Mutex
 }
 
+// Создает новый экземпляр сервиса оркестартора
 func NewOrchestratorService(config config.Config) *OrchestratorService {
 	return &OrchestratorService{
 		time.Duration(config.TimeAdditionMs),
