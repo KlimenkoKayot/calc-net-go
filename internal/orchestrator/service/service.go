@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -49,13 +48,19 @@ func NewOrchestratorService(config config.Config) *OrchestratorService {
 	}
 }
 
+// Создание экземпляра выражения
 func (s *OrchestratorService) NewExpression(expression string) (*models.Expression, error) {
 	valuesIntergace, err := rpn.ExpressionToRPN(expression)
 	if err != nil {
 		return nil, err
 	}
+	// Тут мы создаем новую структуру Linked List,
+	// адаптированную под нашу задачу EXPRESSION -> RPN
+	// каждый элемент RPN будет отдельным элементом в Linked List
 	list := customList.NewLinkedList()
 	for _, val := range valuesIntergace {
+		// Добавляем новые элементы в Linked List
+		// наш стек RPN зареверсится
 		switch val.(type) {
 		case string:
 			list.Add(&customList.NodeData{
@@ -70,6 +75,7 @@ func (s *OrchestratorService) NewExpression(expression string) (*models.Expressi
 			return nil, ErrInvalidSymbolRPN
 		}
 	}
+	// Подсчитываем hash, для добавления нового выражения в сервис
 	hash := utils.ExpressionToSHA512(expression)
 	return &models.Expression{
 		Id:     utils.EncodeToString(hash),
@@ -80,6 +86,7 @@ func (s *OrchestratorService) NewExpression(expression string) (*models.Expressi
 	}, nil
 }
 
+// Обработка получения новой задачи в сервис
 func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error) {
 	log.Printf("Получена новая задача: %s\n", expression)
 	value, err := s.NewExpression(expression)
@@ -87,6 +94,8 @@ func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error)
 		log.Printf("error: %v\n", err)
 		return [64]byte{}, err
 	}
+	// Проверка на наличие задачи с сервисе
+	// (нужно для того, чтобы не считать подсчитанные запросы)
 	s.mu.Lock()
 	_, ansFound := s.Answers[value.Hash]
 	_, expFound := s.Expressions[value.Hash]
@@ -100,11 +109,10 @@ func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error)
 	return value.Hash, nil
 }
 
+// Формирование списка выражений (в обработке/выполнено)
 func (s *OrchestratorService) GetAllExpressions() []models.Expression {
 	expressions := make([]models.Expression, 0)
-	fmt.Println("ABOBA1")
 	s.mu.Lock()
-	fmt.Println("ABOBA3")
 	for _, val := range s.Expressions {
 		expressions = append(expressions, models.Expression{
 			Id:     utils.EncodeToString(val.Hash),
@@ -119,10 +127,10 @@ func (s *OrchestratorService) GetAllExpressions() []models.Expression {
 		})
 	}
 	s.mu.Unlock()
-	fmt.Println("ABOBA2")
 	return expressions
 }
 
+// Получение времени выполнения операции из сервиса
 func (s *OrchestratorService) OperationTime(operation rune) (time.Duration, error) {
 	switch operation {
 	case '+':
@@ -138,8 +146,11 @@ func (s *OrchestratorService) OperationTime(operation rune) (time.Duration, erro
 	}
 }
 
+// Поиск новых подзадач для решения среди всех выражений
 func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*models.Task, error) {
 	tasks := []*models.Task{}
+	// Если в выражении единственный элемент Linked List
+	// то он будет являтся ответом на выражение
 	if expression.List.Root.Next == nil {
 		log.Printf("Получени ответ на задачу: %s, ответ: %f\n", expression.Value, expression.List.Root.Data.Value)
 		// добавляем ответ на значение
@@ -155,14 +166,11 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 		last     *customList.Node
 		previous *customList.Node
 	)
+	// Поиск последовательности в листе формата
+	// OPERATION -> FLOAT -> FLOAT
+	// Такую операцию можно обработать независимо
 	for cur != nil {
-		if cur.Data.IsOperation {
-			fmt.Printf("%s ", string(rune(cur.Data.Operation)))
-		} else {
-			fmt.Printf("%.0f ", cur.Data.Value)
-		}
-		if (last != nil && !last.InAction &&
-			previous != nil && !previous.InAction) && last.Data.IsOperation && !previous.Data.IsOperation && !cur.Data.IsOperation {
+		if (last != nil && !last.InAction && previous != nil && !previous.InAction) && last.Data.IsOperation && !previous.Data.IsOperation && !cur.Data.IsOperation {
 			operationTime, err := s.OperationTime(last.Data.Operation)
 			if err != nil {
 				return nil, err
@@ -175,6 +183,8 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 				Operation:      last.Data.Operation,
 				OperationTime:  operationTime,
 			})
+			// Тут происходит переназначение переменных, чтобы
+			// не было повторяющихся задач при параллельном запросе
 			s.TaskIdUpdate[s.LastTaskId] = last
 			last.InAction = true
 			previous.InAction = true
@@ -190,20 +200,24 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 			cur = cur.Next
 		}
 	}
-	fmt.Println()
 	return tasks, nil
 }
 
+// Получение новой подзадачи из сервиса
 func (s *OrchestratorService) GetTask() (*models.Task, error) {
 	task := &models.Task{}
+	// Итератор очередности запросов
 	reqExpIdx := 0
+	// Если задач нет, то их надо найти
 	for len(s.Tasks) == 0 {
+		// Выражений не было совсем
 		if len(s.Expressions) == 0 || reqExpIdx == len(s.Expressions) {
 			return nil, ErrHaveNoTask
 		} else if len(s.RequestExpressions) == 0 {
 			return nil, ErrEmptyRequestList
 		}
 		s.mu.Lock()
+		// `reqExpIdx`ый по очередности запрос
 		hash := s.RequestExpressions[reqExpIdx]
 		s.mu.Unlock()
 		tasks, err := s.FindNewTasks(s.Expressions[hash])
@@ -219,17 +233,24 @@ func (s *OrchestratorService) GetTask() (*models.Task, error) {
 		reqExpIdx++
 	}
 	s.mu.Lock()
+	// Достаем задачу и удаляем из списка
 	task = s.Tasks[0]
 	s.Tasks = s.Tasks[1:]
 	s.mu.Unlock()
 	return task, nil
 }
 
+// Обработка ответа на подзадачу
 func (s *OrchestratorService) ProcessAnswer(taskAnswer *models.TaskResult) {
 	s.mu.Lock()
+	// Ищем указатель на элемент выражения в Linked List
 	node := s.TaskIdUpdate[taskAnswer.Id]
-	// удаление ненужного ключа
+	// Удаление ненужного ключа, делаем сами, т.к. нужно шарить за параллельность
 	delete(s.TaskIdUpdate, taskAnswer.Id)
+	// Если у нас была последовательность:
+	// -> [+] -> [2] -> [2] ->
+	// То при подсчете подзадачи, она должна трансформироваться в:
+	// -> [4] ->
 	node.Data = &customList.NodeData{
 		Value: taskAnswer.Result,
 	}
