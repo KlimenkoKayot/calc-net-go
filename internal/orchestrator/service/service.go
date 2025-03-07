@@ -219,12 +219,12 @@ func (s *OrchestratorService) GetTask() (*models.Task, error) {
 	// Итератор очередности запросов
 	reqExpIdx := 0
 	// Если задач нет, то их надо найти
-	for len(s.Tasks) == 0 {
+	for len(s.Tasks) == 0 && reqExpIdx < len(s.RequestExpressions) {
 		// Выражений не было совсем
 		if len(s.Expressions) == 0 || reqExpIdx == len(s.Expressions) {
 			return nil, ErrHaveNoTask
 		} else if len(s.RequestExpressions) == 0 {
-			return nil, ErrEmptyRequestList
+			return nil, ErrHaveNoTask
 		}
 		s.mu.Lock()
 		// `reqExpIdx`ый по очередности запрос
@@ -244,6 +244,10 @@ func (s *OrchestratorService) GetTask() (*models.Task, error) {
 	}
 	s.mu.Lock()
 	// Достаем задачу и удаляем из списка
+	if len(s.Tasks) == 0 {
+		s.mu.Unlock()
+		return nil, ErrHaveNoTask
+	}
 	task = s.Tasks[0]
 	s.Tasks = s.Tasks[1:]
 	s.mu.Unlock()

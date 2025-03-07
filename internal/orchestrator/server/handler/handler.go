@@ -136,6 +136,7 @@ func (h *OrchestratorHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 		io.Writer(w).Write(utils.ErrorResponse(err))
 		return
 	} else if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		io.Writer(w).Write(utils.ErrorResponse(err))
 		return
@@ -160,8 +161,8 @@ func (h *OrchestratorHandler) PostTask(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Ошибка при попытке парсинга json TaskAnswer: %e\n", err)
 		return
 	}
-	if taskAnswer.Error != nil {
-		log.Printf("Подзадача id %d, error: %e\n", taskAnswer.Id, taskAnswer.Error)
+	if taskAnswer.Error != "" {
+		log.Printf("Подзадача id %d, error: %s\n", taskAnswer.Id, taskAnswer.Error)
 		h.Service.ProcessErrorAnswer(taskAnswer)
 		return
 	}

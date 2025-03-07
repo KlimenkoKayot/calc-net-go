@@ -70,13 +70,15 @@
               clearInterval(pollInterval);
             } else {
               document.getElementById("status").innerHTML = "<div class='alert alert-info'>Статус: " + data.status + "</div>";
+              if (data.status === "Ошибка.") {
+                clearInterval(pollInterval);
+              }
             }
           })
           .catch(err => {
-            alert(data);
             console.error("Ошибка получения статуса", err);
-            clearInterval(pollInterval);
             document.getElementById("status").innerHTML = "<div class='alert alert-danger'>Ошибка получения статуса</div>";
+            clearInterval(pollInterval);
           });
       }, 2000);
     }

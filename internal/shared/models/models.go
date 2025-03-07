@@ -30,7 +30,7 @@ type Task struct {
 type TaskResult struct {
 	Id     uint    `json:"id"`
 	Result float64 `json:"result"`
-	Error  error   `json:"error,omitempty"`
+	Error  string  `json:"error,omitempty"`
 }
 
 // Структура для обработки запросов на статус запроса

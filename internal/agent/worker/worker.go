@@ -41,15 +41,20 @@ func (w *Worker) Solve(task *models.Task) *models.TaskResult {
 	case '/':
 		if task.SecondArgument == 0 {
 			err = ErrDivisionByZero
+			answer = 0
+			break
 		}
-
 		answer = task.FirstArgument / task.SecondArgument
 	}
 	log.Printf("Получен ответ на подзадачу с id: %d, ответ: %f\n", task.Id, answer)
+	errString := ""
+	if err != nil {
+		errString = err.Error()
+	}
 	return &models.TaskResult{
 		Id:     task.Id,
 		Result: answer,
-		Error:  err,
+		Error:  errString,
 	}
 }
 
