@@ -86,7 +86,7 @@
 ```
 
 ### 3. Получение выражения по его идентификатору
-**Endpoint:** `GET /api/v1/expressions/:id`
+**Endpoint:** `GET /api/v1/expressions/<id>`
 
 **Ответ:**
 - Код ответа: `200` — успешно получено выражение.
@@ -185,7 +185,7 @@
 
 1. Отправьте выражение на вычисление:
    ```bash
-   curl --location 'localhost/api/v1/calculate' \
+   curl --location 'http://127.0.0.1:8080/api/v1/calculate' \
    --header 'Content-Type: application/json' \
    --data '{
      "expression": "(2 / 2) + (2 * 2)"
@@ -193,11 +193,11 @@
    ```
 2. Получите список выражений:
    ```bash
-   curl --location 'localhost/api/v1/expressions'
+   curl --location 'http://127.0.0.1:8080/api/v1/expressions'
    ```
 3. Получите результат вычисления по идентификатору:
    ```bash
-   curl --location 'localhost/api/v1/expressions/<id>'
+   curl --location 'http://127.0.0.1:8080/api/v1/expressions/<id>'
    ```
 
 ---

@@ -160,6 +160,11 @@ func (h *OrchestratorHandler) PostTask(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Ошибка при попытке парсинга json TaskAnswer: %e\n", err)
 		return
 	}
+	if taskAnswer.Error != nil {
+		log.Printf("Подзадача id %d, error: %e\n", taskAnswer.Id, taskAnswer.Error)
+		h.Service.ProcessErrorAnswer(taskAnswer)
+		return
+	}
 	log.Printf("Обработка ответа id: %d, ответ: %f", taskAnswer.Id, taskAnswer.Result)
 	// Обрабатываем решение подзадачи в сервисе
 	h.Service.ProcessAnswer(taskAnswer)

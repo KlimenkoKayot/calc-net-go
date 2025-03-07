@@ -20,6 +20,7 @@ type OrchestratorService struct {
 	TimeDivisionsMs       time.Duration // Время решения задачи вычитания
 
 	TaskIdUpdate       map[uint]*customList.Node       // Словарь, который по id подзадачи может найти указатель на элемент RPN forward list
+	TaskIdExpression   map[uint]*models.Expression     // Словарь, который по id подзадачи может найти указатель на выражение
 	Tasks              []*models.Task                  // Список подзадач для решения
 	Answers            map[[64]byte]float64            // Ответы на разные задачи, которые были обработаны ранее
 	Expressions        map[[64]byte]*models.Expression // Словарь выражений по хэшу
@@ -38,6 +39,7 @@ func NewOrchestratorService(config config.Config) *OrchestratorService {
 		time.Duration(config.TimeDivisionsMs),
 
 		make(map[uint]*customList.Node, 0),
+		make(map[uint]*models.Expression, 0),
 		make([]*models.Task, 0),
 		make(map[[64]byte]float64),
 		make(map[[64]byte]*models.Expression),
@@ -151,8 +153,14 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 	tasks := []*models.Task{}
 	// Если в выражении единственный элемент Linked List
 	// то он будет являтся ответом на выражение
+	s.mu.Lock()
+	status := expression.Status
+	s.mu.Unlock()
+	if status == "Ошибка." {
+		return nil, ErrAnswerExpression
+	}
 	if expression.List.Root.Next == nil {
-		log.Printf("Получени ответ на задачу: %s, ответ: %f\n", expression.Value, expression.List.Root.Data.Value)
+		log.Printf("Получен ответ на задачу: %s, ответ: %f\n", expression.Value, expression.List.Root.Data.Value)
 		// добавляем ответ на значение
 		s.mu.Lock()
 		s.Answers[expression.Hash] = expression.List.Root.Data.Value
@@ -183,6 +191,8 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 				Operation:      last.Data.Operation,
 				OperationTime:  operationTime,
 			})
+			// Помечаем родительское выражение у подзадачи
+			s.TaskIdExpression[s.LastTaskId] = expression
 			// Тут происходит переназначение переменных, чтобы
 			// не было повторяющихся задач при параллельном запросе
 			s.TaskIdUpdate[s.LastTaskId] = last
@@ -256,5 +266,17 @@ func (s *OrchestratorService) ProcessAnswer(taskAnswer *models.TaskResult) {
 	}
 	node.Next = node.Next.Next.Next
 	node.InAction = false
+	s.mu.Unlock()
+}
+
+// Обрабатывает подзадачи с ошибками
+func (s *OrchestratorService) ProcessErrorAnswer(taskAnswer *models.TaskResult) {
+	s.mu.Lock()
+	// Ищем указатель на элемент выражение
+	expression := s.TaskIdExpression[taskAnswer.Id]
+	// Удаление ненужного ключа, делаем сами, т.к. нужно шарить за параллельность
+	delete(s.TaskIdUpdate, taskAnswer.Id)
+	// Помечаем выражение как ошибочное
+	s.Expressions[expression.Hash].Status = "Ошибка."
 	s.mu.Unlock()
 }

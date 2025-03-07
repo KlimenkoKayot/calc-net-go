@@ -30,6 +30,7 @@ func (w *Worker) Solve(task *models.Task) *models.TaskResult {
 	log.Printf("Worker получил новую подзадачу c id: %d\n", task.Id)
 	time.Sleep(time.Millisecond * task.OperationTime)
 	var answer float64
+	var err error
 	switch task.Operation {
 	case '+':
 		answer = task.FirstArgument + task.SecondArgument
@@ -38,12 +39,17 @@ func (w *Worker) Solve(task *models.Task) *models.TaskResult {
 	case '*':
 		answer = task.FirstArgument * task.SecondArgument
 	case '/':
+		if task.SecondArgument == 0 {
+			err = ErrDivisionByZero
+		}
+
 		answer = task.FirstArgument / task.SecondArgument
 	}
 	log.Printf("Получен ответ на подзадачу с id: %d, ответ: %f\n", task.Id, answer)
 	return &models.TaskResult{
 		Id:     task.Id,
 		Result: answer,
+		Error:  err,
 	}
 }
 
