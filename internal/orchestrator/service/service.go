@@ -177,7 +177,9 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 	// Поиск последовательности в листе формата
 	// OPERATION -> FLOAT -> FLOAT
 	// Такую операцию можно обработать независимо
+	haveActiveElements := false
 	for cur != nil {
+		haveActiveElements = haveActiveElements || cur.InAction
 		if (last != nil && !last.InAction && previous != nil && !previous.InAction) && last.Data.IsOperation && !previous.Data.IsOperation && !cur.Data.IsOperation {
 			operationTime, err := s.OperationTime(last.Data.Operation)
 			if err != nil {
@@ -210,6 +212,9 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 			cur = cur.Next
 		}
 	}
+	if !haveActiveElements && len(tasks) == 0 {
+		return nil, ErrInvalidExpression
+	}
 	return tasks, nil
 }
 
@@ -232,6 +237,11 @@ func (s *OrchestratorService) GetTask() (*models.Task, error) {
 		s.mu.Unlock()
 		tasks, err := s.FindNewTasks(s.Expressions[hash])
 		if err == ErrAnswerExpression {
+			s.RequestExpressions = append(s.RequestExpressions[:reqExpIdx], s.RequestExpressions[reqExpIdx+1:]...)
+			continue
+		} else if err == ErrInvalidExpression {
+			log.Printf("Обработано некорректное выражение, помечено ошибкой.\n")
+			s.Expressions[hash].Status = "Ошибка."
 			s.RequestExpressions = append(s.RequestExpressions[:reqExpIdx], s.RequestExpressions[reqExpIdx+1:]...)
 			continue
 		} else if err != nil {
