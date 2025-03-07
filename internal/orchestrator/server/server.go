@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
@@ -33,11 +34,16 @@ func (s *Server) Run() error {
 	handler := handler.NewOrchestratorHandler(*s.Config)
 
 	// Разные endpoint`ы
+	mux.HandleFunc("/", handler.Index)
 	mux.HandleFunc("/api/v1/calculate", handler.NewExpression)
 	mux.HandleFunc("/api/v1/expressions", handler.Expressions)
-	mux.HandleFunc("/api/v1/expressions/:{id}", handler.Expression)
+	mux.HandleFunc("/api/v1/expressions/{id}", handler.Expression)
 	mux.HandleFunc("/internal/task", handler.PostTask).Methods("POST")
 	mux.HandleFunc("/internal/task", handler.GetTask).Methods("GET")
+
+	staticDir := filepath.Join(".", "web", "static")
+	fs := http.FileServer(http.Dir(staticDir))
+	mux.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	log.Printf("Server started at port :%d\n", s.Config.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), mux); err != nil {

@@ -2,9 +2,11 @@ package orchestrator
 
 import (
 	"encoding/json"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
@@ -161,4 +163,11 @@ func (h *OrchestratorHandler) PostTask(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Обработка ответа id: %d, ответ: %f", taskAnswer.Id, taskAnswer.Result)
 	// Обрабатываем решение подзадачи в сервисе
 	h.Service.ProcessAnswer(taskAnswer)
+}
+
+func (h *OrchestratorHandler) Index(w http.ResponseWriter, r *http.Request) {
+	temp := template.Must(template.ParseFiles(filepath.Join(".", "web", "template", "index.html")))
+	w.WriteHeader(http.StatusFound)
+	w.Header().Set("Content-Type", "text/html")
+	temp.Execute(w, nil)
 }
