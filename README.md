@@ -22,6 +22,8 @@
 
 ## Описание архитектуры
 
+![pattern](https://github.com/KlimenkoKayot/calc-net-go/blob/main/web/static/img/pattern.jpg)
+
 ### Оркестратор
 Оркестратор является центральным компонентом системы, который:
 1. Принимает арифметические выражения от пользователей.
@@ -53,7 +55,7 @@ http://127.0.0.1:8080/
 **Endpoint:** `POST /api/v1/calculate`
 
 **Запрос:**
-```json
+```json 
 {
   "expression": "<строка с выражением>"
 }
