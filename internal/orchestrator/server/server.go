@@ -43,7 +43,7 @@ func (s *Server) Run() error {
 
 	staticDir := filepath.Join(".", "web", "static")
 	fs := http.FileServer(http.Dir(staticDir))
-	mux.Handle("/static/", http.StripPrefix("/static/", fs))
+	mux.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	log.Printf("Server started at port :%d\n", s.Config.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), mux); err != nil {

@@ -39,3 +39,9 @@ type Result struct {
 	Status string  `json:"status"`
 	Result float64 `json:"result"`
 }
+
+// Хранит хэш и флаг, если какой-то агент забрал доступ к запросу
+type RequestExpression struct {
+	Hash     [64]byte
+	InAction bool
+}

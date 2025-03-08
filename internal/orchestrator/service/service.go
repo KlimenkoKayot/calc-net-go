@@ -8,6 +8,7 @@ import (
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
 	"github.com/klimenkokayot/calc-net-go/internal/shared/customList"
 	"github.com/klimenkokayot/calc-net-go/internal/shared/models"
+	orderedmap "github.com/klimenkokayot/calc-net-go/internal/shared/orderedMap"
 	"github.com/klimenkokayot/calc-net-go/internal/shared/utils"
 	"github.com/klimenkokayot/calc-net-go/pkg/rpn"
 )
@@ -24,10 +25,11 @@ type OrchestratorService struct {
 	Tasks              []*models.Task                  // Список подзадач для решения
 	Answers            map[[64]byte]float64            // Ответы на разные задачи, которые были обработаны ранее
 	Expressions        map[[64]byte]*models.Expression // Словарь выражений по хэшу
-	RequestExpressions [][64]byte                      // Список всех полученных запросов на подсчет в порядке времени получения запроса
+	RequestExpressions *orderedmap.OrderedMap          // Список всех полученных запросов на подсчет в порядке времени получения запроса
 
-	mu         *sync.RWMutex
-	LastTaskId uint // Счетчик для индексации решения подзадач
+	mu               *sync.RWMutex
+	LastExpressionId uint // Счетчик для индексации выражений
+	LastTaskId       uint // Счетчик для индексации решения подзадач
 }
 
 // Создает новый экземпляр сервиса оркестартора
@@ -43,9 +45,10 @@ func NewOrchestratorService(config config.Config) *OrchestratorService {
 		make([]*models.Task, 0),
 		make(map[[64]byte]float64),
 		make(map[[64]byte]*models.Expression),
-		make([][64]byte, 0),
+		orderedmap.NewOrderedMap(),
 
 		&sync.RWMutex{},
+		0,
 		0,
 	}
 }
@@ -101,8 +104,14 @@ func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error)
 	_, ansFound := s.Answers[value.Hash]
 	_, expFound := s.Expressions[value.Hash]
 	if !ansFound && !expFound {
+		s.mu.Lock()
 		s.Expressions[value.Hash] = value
-		s.RequestExpressions = append(s.RequestExpressions, value.Hash)
+		s.RequestExpressions.Set(s.LastExpressionId, &models.RequestExpression{
+			Hash:     value.Hash,
+			InAction: false,
+		})
+		s.LastExpressionId++
+		s.mu.Unlock()
 	}
 	return value.Hash, nil
 }
@@ -156,7 +165,9 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 		// добавляем ответ на значение
 		s.Answers[expression.Hash] = expression.List.Root.Data.Value
 		// удаляем, т.к. посчитали
+		s.mu.Lock()
 		delete(s.Expressions, expression.Hash)
+		s.mu.Unlock()
 		return nil, ErrAnswerExpression
 	}
 	cur := expression.List.Root
@@ -168,8 +179,10 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 	// OPERATION -> FLOAT -> FLOAT
 	// Такую операцию можно обработать независимо
 	haveActiveElements := false
+	listLen := 0
 	for cur != nil {
 		haveActiveElements = haveActiveElements || cur.InAction
+		listLen++
 		if (last != nil && !last.InAction && previous != nil && !previous.InAction) && last.Data.IsOperation && !previous.Data.IsOperation && !cur.Data.IsOperation {
 			operationTime, err := s.OperationTime(last.Data.Operation)
 			if err != nil {
@@ -183,7 +196,9 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 				OperationTime:  operationTime,
 			})
 			// Помечаем родительское выражение у подзадачи
+			s.mu.Lock()
 			s.TaskIdExpression[s.LastTaskId] = expression
+			s.mu.Unlock()
 			// Тут происходит переназначение переменных, чтобы
 			// не было повторяющихся задач при параллельном запросе
 			s.TaskIdUpdate[s.LastTaskId] = last
@@ -200,7 +215,7 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 			cur = cur.Next
 		}
 	}
-	if !haveActiveElements && len(tasks) == 0 {
+	if !haveActiveElements && listLen != 0 && len(tasks) == 0 {
 		return nil, ErrInvalidExpression
 	}
 	return tasks, nil
@@ -209,42 +224,48 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 // Получение новой подзадачи из сервиса
 func (s *OrchestratorService) GetTask() (*models.Task, error) {
 	task := &models.Task{}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// Итератор очередности запросов
-	reqExpIdx := 0
-	// Если задач нет, то их надо найти
-	for len(s.Tasks) == 0 && reqExpIdx < len(s.RequestExpressions) {
-		val := s.RequestExpressions[reqExpIdx]
-		if val == [64]byte{} {
-			s.RequestExpressions = append(s.RequestExpressions[:reqExpIdx], s.RequestExpressions[reqExpIdx+1:]...)
+	reqExpIdx := uint(0)
+
+	for len(s.Tasks) == 0 && reqExpIdx < s.LastExpressionId+1 {
+		s.mu.Lock()
+		exp, found := s.RequestExpressions.Get(reqExpIdx)
+		if !found || exp.InAction {
+			s.mu.Unlock()
+			reqExpIdx++
 			continue
+		} else {
+			exp.InAction = true
+			s.mu.Unlock()
+
+			tasks, err := s.FindNewTasks(s.Expressions[exp.Hash])
+			if err == ErrAnswerExpression {
+				s.RequestExpressions.Delete(reqExpIdx)
+				exp.InAction = false
+				continue
+			} else if err == ErrInvalidExpression {
+				log.Printf("Обработано некорректное выражение, помечено ошибкой.\n")
+				s.mu.Lock()
+				s.Expressions[exp.Hash].Status = "Ошибка."
+				s.mu.Unlock()
+				s.RequestExpressions.Delete(reqExpIdx)
+				exp.InAction = false
+				continue
+			} else if err != nil {
+				exp.InAction = false
+				return nil, err
+			}
+
+			exp.InAction = false
+			s.mu.Lock()
+			s.Tasks = append(s.Tasks, tasks...)
+			s.mu.Unlock()
 		}
-		if len(s.Expressions) == 0 || reqExpIdx == len(s.Expressions) {
-			return nil, ErrHaveNoTask
-		} else if len(s.RequestExpressions) == 0 {
-			return nil, ErrHaveNoTask
-		}
-		// `reqExpIdx`ый по очередности запрос
-		hash := s.RequestExpressions[reqExpIdx]
-		tasks, err := s.FindNewTasks(s.Expressions[hash])
-		if err == ErrAnswerExpression {
-			s.RequestExpressions[reqExpIdx] = [64]byte{}
-			continue
-		} else if err == ErrInvalidExpression {
-			log.Printf("Обработано некорректное выражение, помечено ошибкой.\n")
-			s.RequestExpressions[reqExpIdx] = [64]byte{}
-			s.Expressions[hash].Status = "Ошибка."
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-		s.Tasks = append(s.Tasks, tasks...)
 	}
-	// Достаем задачу и удаляем из списка
+
 	if len(s.Tasks) == 0 {
 		return nil, ErrHaveNoTask
 	}
+
 	task = s.Tasks[0]
 	s.Tasks = s.Tasks[1:]
 	return task, nil
@@ -274,5 +295,7 @@ func (s *OrchestratorService) ProcessErrorAnswer(taskAnswer *models.TaskResult) 
 	// Удаление ненужного ключа, делаем сами, т.к. нужно шарить за параллельность
 	delete(s.TaskIdUpdate, taskAnswer.Id)
 	// Помечаем выражение как ошибочное
+	s.mu.Lock()
 	s.Expressions[expression.Hash].Status = "Ошибка."
+	s.mu.Unlock()
 }
