@@ -68,7 +68,6 @@ func (h *OrchestratorHandler) NewExpression(w http.ResponseWriter, r *http.Reque
 		io.Writer(w).Write(utils.ErrorResponse(ErrInternalServer))
 		return
 	}
-
 	w.WriteHeader(http.StatusCreated)
 	io.Writer(w).Write(json)
 }
@@ -76,7 +75,9 @@ func (h *OrchestratorHandler) NewExpression(w http.ResponseWriter, r *http.Reque
 // Обработка запросов на получения списка всех полученных и обработанных задач
 func (h *OrchestratorHandler) Expressions(w http.ResponseWriter, r *http.Request) {
 	// Запрос в сервис
+
 	expressions := h.Service.GetAllExpressions()
+
 	json, err := json.Marshal(expressions)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -102,6 +103,7 @@ func (h *OrchestratorHandler) Expression(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Пытаемся найти выражение в списке необработанных выражений
+
 	if val, found := h.Service.Expressions[hash]; found {
 		json, _ := json.Marshal(models.Expression{
 			Id:     id,
@@ -109,6 +111,7 @@ func (h *OrchestratorHandler) Expression(w http.ResponseWriter, r *http.Request)
 		})
 		w.WriteHeader(http.StatusOK)
 		io.Writer(w).Write(json)
+
 		return
 	}
 
@@ -121,6 +124,7 @@ func (h *OrchestratorHandler) Expression(w http.ResponseWriter, r *http.Request)
 		})
 		w.WriteHeader(http.StatusOK)
 		io.Writer(w).Write(json)
+
 		return
 	}
 
@@ -163,7 +167,9 @@ func (h *OrchestratorHandler) PostTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if taskAnswer.Error != "" {
 		log.Printf("Подзадача id %d, error: %s\n", taskAnswer.Id, taskAnswer.Error)
+
 		h.Service.ProcessErrorAnswer(taskAnswer)
+
 		return
 	}
 	log.Printf("Обработка ответа id: %d, ответ: %f", taskAnswer.Id, taskAnswer.Result)

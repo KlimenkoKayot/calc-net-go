@@ -26,8 +26,8 @@ type OrchestratorService struct {
 	Expressions        map[[64]byte]*models.Expression // Словарь выражений по хэшу
 	RequestExpressions [][64]byte                      // Список всех полученных запросов на подсчет в порядке времени получения запроса
 
+	mu         *sync.RWMutex
 	LastTaskId uint // Счетчик для индексации решения подзадач
-	mu         *sync.Mutex
 }
 
 // Создает новый экземпляр сервиса оркестартора
@@ -45,8 +45,8 @@ func NewOrchestratorService(config config.Config) *OrchestratorService {
 		make(map[[64]byte]*models.Expression),
 		make([][64]byte, 0),
 
+		&sync.RWMutex{},
 		0,
-		&sync.Mutex{},
 	}
 }
 
@@ -98,15 +98,11 @@ func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error)
 	}
 	// Проверка на наличие задачи с сервисе
 	// (нужно для того, чтобы не считать подсчитанные запросы)
-	s.mu.Lock()
 	_, ansFound := s.Answers[value.Hash]
 	_, expFound := s.Expressions[value.Hash]
-	s.mu.Unlock()
 	if !ansFound && !expFound {
-		s.mu.Lock()
 		s.Expressions[value.Hash] = value
 		s.RequestExpressions = append(s.RequestExpressions, value.Hash)
-		s.mu.Unlock()
 	}
 	return value.Hash, nil
 }
@@ -114,7 +110,7 @@ func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error)
 // Формирование списка выражений (в обработке/выполнено)
 func (s *OrchestratorService) GetAllExpressions() []models.Expression {
 	expressions := make([]models.Expression, 0)
-	s.mu.Lock()
+
 	for _, val := range s.Expressions {
 		expressions = append(expressions, models.Expression{
 			Id:     utils.EncodeToString(val.Hash),
@@ -128,7 +124,7 @@ func (s *OrchestratorService) GetAllExpressions() []models.Expression {
 			Result: val,
 		})
 	}
-	s.mu.Unlock()
+
 	return expressions
 }
 
@@ -153,20 +149,18 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 	tasks := []*models.Task{}
 	// Если в выражении единственный элемент Linked List
 	// то он будет являтся ответом на выражение
-	s.mu.Lock()
+
 	status := expression.Status
-	s.mu.Unlock()
+
 	if status == "Ошибка." {
 		return nil, ErrAnswerExpression
 	}
 	if expression.List.Root.Next == nil {
 		log.Printf("Получен ответ на задачу: %s, ответ: %f\n", expression.Value, expression.List.Root.Data.Value)
 		// добавляем ответ на значение
-		s.mu.Lock()
 		s.Answers[expression.Hash] = expression.List.Root.Data.Value
 		// удаляем, т.к. посчитали
 		delete(s.Expressions, expression.Hash)
-		s.mu.Unlock()
 		return nil, ErrAnswerExpression
 	}
 	cur := expression.List.Root
@@ -185,7 +179,7 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 			if err != nil {
 				return nil, err
 			}
-			s.mu.Lock()
+
 			tasks = append(tasks, &models.Task{
 				Id:             s.LastTaskId,
 				FirstArgument:  cur.Data.Value,
@@ -202,7 +196,7 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 			previous.InAction = true
 			cur.InAction = true
 			s.LastTaskId++
-			s.mu.Unlock()
+
 			last = nil
 			previous = nil
 			cur = cur.Next
@@ -221,52 +215,63 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 // Получение новой подзадачи из сервиса
 func (s *OrchestratorService) GetTask() (*models.Task, error) {
 	task := &models.Task{}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	// Итератор очередности запросов
 	reqExpIdx := 0
 	// Если задач нет, то их надо найти
 	for len(s.Tasks) == 0 && reqExpIdx < len(s.RequestExpressions) {
-		// Выражений не было совсем
+		// s.mu.Lock()
+		val := s.RequestExpressions[reqExpIdx]
+		// s.mu.Unlock()
+		if val == [64]byte{} {
+			// s.mu.Lock()
+			s.RequestExpressions = append(s.RequestExpressions[:reqExpIdx], s.RequestExpressions[reqExpIdx+1:]...)
+			// s.mu.Unlock()
+			continue
+		}
 		if len(s.Expressions) == 0 || reqExpIdx == len(s.Expressions) {
 			return nil, ErrHaveNoTask
 		} else if len(s.RequestExpressions) == 0 {
 			return nil, ErrHaveNoTask
 		}
-		s.mu.Lock()
 		// `reqExpIdx`ый по очередности запрос
+		// s.mu.Lock()
 		hash := s.RequestExpressions[reqExpIdx]
-		s.mu.Unlock()
 		tasks, err := s.FindNewTasks(s.Expressions[hash])
+		// s.mu.Unlock()
 		if err == ErrAnswerExpression {
-			s.RequestExpressions = append(s.RequestExpressions[:reqExpIdx], s.RequestExpressions[reqExpIdx+1:]...)
+			// s.mu.Lock()
+			s.RequestExpressions[reqExpIdx] = [64]byte{}
+			// s.mu.Unlock()
 			continue
 		} else if err == ErrInvalidExpression {
 			log.Printf("Обработано некорректное выражение, помечено ошибкой.\n")
+			// s.mu.Lock()
+			s.RequestExpressions[reqExpIdx] = [64]byte{}
 			s.Expressions[hash].Status = "Ошибка."
-			s.RequestExpressions = append(s.RequestExpressions[:reqExpIdx], s.RequestExpressions[reqExpIdx+1:]...)
+			// s.mu.Unlock()
 			continue
 		} else if err != nil {
 			return nil, err
 		}
-		s.mu.Lock()
+		// s.mu.Lock()
 		s.Tasks = append(s.Tasks, tasks...)
-		s.mu.Unlock()
-		reqExpIdx++
+		// s.mu.Unlock()
 	}
-	s.mu.Lock()
 	// Достаем задачу и удаляем из списка
 	if len(s.Tasks) == 0 {
-		s.mu.Unlock()
 		return nil, ErrHaveNoTask
 	}
+	// s.mu.Lock()
 	task = s.Tasks[0]
 	s.Tasks = s.Tasks[1:]
-	s.mu.Unlock()
+	// s.mu.Unlock()
 	return task, nil
 }
 
 // Обработка ответа на подзадачу
 func (s *OrchestratorService) ProcessAnswer(taskAnswer *models.TaskResult) {
-	s.mu.Lock()
 	// Ищем указатель на элемент выражения в Linked List
 	node := s.TaskIdUpdate[taskAnswer.Id]
 	// Удаление ненужного ключа, делаем сами, т.к. нужно шарить за параллельность
@@ -280,17 +285,17 @@ func (s *OrchestratorService) ProcessAnswer(taskAnswer *models.TaskResult) {
 	}
 	node.Next = node.Next.Next.Next
 	node.InAction = false
-	s.mu.Unlock()
+
 }
 
 // Обрабатывает подзадачи с ошибками
 func (s *OrchestratorService) ProcessErrorAnswer(taskAnswer *models.TaskResult) {
-	s.mu.Lock()
+
 	// Ищем указатель на элемент выражение
 	expression := s.TaskIdExpression[taskAnswer.Id]
 	// Удаление ненужного ключа, делаем сами, т.к. нужно шарить за параллельность
 	delete(s.TaskIdUpdate, taskAnswer.Id)
 	// Помечаем выражение как ошибочное
 	s.Expressions[expression.Hash].Status = "Ошибка."
-	s.mu.Unlock()
+
 }
