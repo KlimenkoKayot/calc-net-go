@@ -87,7 +87,7 @@ func (s *OrchestratorService) NewExpression(expression string) (*models.Expressi
 		Value:  expression,
 		Hash:   hash,
 		List:   list,
-		Status: "В очереди.",
+		Status: models.StateInProgress,
 	}, nil
 }
 
@@ -128,7 +128,7 @@ func (s *OrchestratorService) GetAllExpressions() []models.Expression {
 	for hash, val := range s.Answers {
 		expressions = append(expressions, models.Expression{
 			Id:     utils.EncodeToString(hash),
-			Status: "Выполнено.",
+			Status: models.StateDone,
 			Result: val,
 		})
 	}
@@ -157,7 +157,7 @@ func (s *OrchestratorService) FindNewTasks(expression *models.Expression) ([]*mo
 	// Если в выражении единственный элемент Linked List
 	// то он будет являтся ответом на выражение
 	status := expression.Status
-	if status == "Ошибка." {
+	if status == models.StateError {
 		return nil, ErrAnswerExpression
 	}
 	if expression.List.Root.Next == nil {
@@ -245,7 +245,7 @@ func (s *OrchestratorService) GetTask() (*models.Task, error) {
 			} else if err == ErrInvalidExpression {
 				log.Printf("Обработано некорректное выражение, помечено ошибкой.\n")
 				s.mu.Lock()
-				s.Expressions[exp.Hash].Status = "Ошибка."
+				s.Expressions[exp.Hash].Status = models.StateError
 				s.mu.Unlock()
 				s.RequestExpressions.Delete(reqExpIdx)
 				exp.InAction = false
@@ -291,11 +291,16 @@ func (s *OrchestratorService) ProcessAnswer(taskAnswer *models.TaskResult) {
 // Обрабатывает подзадачи с ошибками
 func (s *OrchestratorService) ProcessErrorAnswer(taskAnswer *models.TaskResult) {
 	// Ищем указатель на элемент выражение
-	expression := s.TaskIdExpression[taskAnswer.Id]
+	s.mu.Lock()
+	expression, found := s.TaskIdExpression[taskAnswer.Id]
+	s.mu.Unlock()
+	if !found {
+		return
+	}
 	// Удаление ненужного ключа, делаем сами, т.к. нужно шарить за параллельность
+	s.mu.Lock()
 	delete(s.TaskIdUpdate, taskAnswer.Id)
 	// Помечаем выражение как ошибочное
-	s.mu.Lock()
-	s.Expressions[expression.Hash].Status = "Ошибка."
+	s.Expressions[expression.Hash].Status = models.StateError
 	s.mu.Unlock()
 }

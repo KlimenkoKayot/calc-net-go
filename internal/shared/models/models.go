@@ -6,6 +6,12 @@ import (
 	"github.com/klimenkokayot/calc-net-go/internal/shared/customList"
 )
 
+const (
+	StateDone       string = "Выполнено."
+	StateInProgress string = "В обработке."
+	StateError      string = "Ошибка."
+)
+
 // Структура арифметического выражения
 type Expression struct {
 	Id     string  `json:"id,omitempty"`
