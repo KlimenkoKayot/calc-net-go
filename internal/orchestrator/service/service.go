@@ -281,11 +281,15 @@ func (s *OrchestratorService) ProcessAnswer(taskAnswer *models.TaskResult) {
 	// -> [+] -> [2] -> [2] ->
 	// То при подсчете подзадачи, она должна трансформироваться в:
 	// -> [4] ->
-	node.Data = &customList.NodeData{
-		Value: taskAnswer.Result,
+	s.mu.Lock()
+	if node != nil {
+		node.Data = &customList.NodeData{
+			Value: taskAnswer.Result,
+		}
+		node.Next = node.Next.Next.Next
+		node.InAction = false
 	}
-	node.Next = node.Next.Next.Next
-	node.InAction = false
+	s.mu.Unlock()
 }
 
 // Обрабатывает подзадачи с ошибками
