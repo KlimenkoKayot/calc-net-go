@@ -33,7 +33,7 @@ type OrchestratorService struct {
 }
 
 // Создает новый экземпляр сервиса оркестартора
-func NewOrchestratorService(config config.Config) *OrchestratorService {
+func NewOrchestratorService(config *config.Config) *OrchestratorService {
 	return &OrchestratorService{
 		time.Duration(config.TimeAdditionMs),
 		time.Duration(config.TimeSubtractionMs),
@@ -55,6 +55,9 @@ func NewOrchestratorService(config config.Config) *OrchestratorService {
 
 // Создание экземпляра выражения
 func (s *OrchestratorService) NewExpression(expression string) (*models.Expression, error) {
+	if expression == "" {
+		return nil, ErrZeroExpression
+	}
 	valuesIntergace, err := rpn.ExpressionToRPN(expression)
 	if err != nil {
 		return nil, err
@@ -93,6 +96,9 @@ func (s *OrchestratorService) NewExpression(expression string) (*models.Expressi
 
 // Обработка получения новой задачи в сервис
 func (s *OrchestratorService) AddExpression(expression string) ([64]byte, error) {
+	if expression == "" {
+		return [64]byte{}, ErrZeroExpression
+	}
 	log.Printf("Получена новая задача: %s\n", expression)
 	value, err := s.NewExpression(expression)
 	if err != nil {

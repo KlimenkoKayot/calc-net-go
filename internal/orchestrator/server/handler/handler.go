@@ -25,7 +25,7 @@ type OrchestratorHandler struct {
 }
 
 // Создает экземпляр обработчика
-func NewOrchestratorHandler(config config.Config) *OrchestratorHandler {
+func NewOrchestratorHandler(config *config.Config) *OrchestratorHandler {
 	return &OrchestratorHandler{
 		Service: service.NewOrchestratorService(config),
 	}

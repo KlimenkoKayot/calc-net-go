@@ -31,7 +31,7 @@ func NewServer() (*Server, error) {
 // Запуск сервера, использует роутер gorilla/mux
 func (s *Server) Run() error {
 	mux := mux.NewRouter()
-	handler := handler.NewOrchestratorHandler(*s.Config)
+	handler := handler.NewOrchestratorHandler(s.Config)
 
 	// Разные endpoint`ы
 	mux.HandleFunc("/", handler.Index)

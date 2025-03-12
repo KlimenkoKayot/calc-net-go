@@ -67,10 +67,15 @@ func ExpressionToRPN(expresison string) ([]interface{}, error) {
 	}
 	result := []interface{}{}
 	stack := []interface{}{}
+	isPreviosOperation := false
 	for _, val := range all {
 		if val.IsFloat64 {
 			result = append(result, val.Value)
+			isPreviosOperation = false
 		} else {
+			if isPreviosOperation {
+				return nil, ErrInvalidExpression
+			}
 			if len(stack) == 0 {
 				stack = append(stack, val.Value)
 			} else {
@@ -98,6 +103,7 @@ func ExpressionToRPN(expresison string) ([]interface{}, error) {
 					}
 				}
 			}
+			isPreviosOperation = true
 		}
 	}
 	for len(stack) > 0 {

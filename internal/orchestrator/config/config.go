@@ -1,7 +1,9 @@
 package orchestrator
 
 import (
+	"log"
 	"os"
+	"regexp"
 	"strconv"
 
 	"github.com/joho/godotenv"
@@ -16,12 +18,21 @@ type Config struct {
 	TimeDivisionsMs       uint64 // время выполнения операции деления в миллисекундах
 }
 
+// Загрузка .env из любой точки входа в проекте
+// (нужно для запуска тестов)
+func init() {
+	// Загрузка переменных окружения из .env файла
+	projectDirName := `calc-net-go`
+	re := regexp.MustCompile(`^(.*` + projectDirName + `)`)
+	cwd, _ := os.Getwd()
+	rootPath := re.Find([]byte(cwd))
+	if err := godotenv.Load(string(rootPath) + `/.env`); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+}
+
 // Создает новый конфиг, получает значения переменных из .env
 func NewConfig() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, ErrLoadEnvironment
-	}
-
 	PortString := os.Getenv("PORT")
 	if PortString == "" {
 		PortString = "8080"

@@ -8,4 +8,5 @@ var (
 	ErrHaveNoTask        = fmt.Errorf("нет задач")
 	ErrAnswerExpression  = fmt.Errorf("попытка поиска задач в выражении, состоящем из ответа")
 	ErrInvalidExpression = fmt.Errorf("выражение задано некорректно")
+	ErrZeroExpression    = fmt.Errorf("пустое выражение")
 )
