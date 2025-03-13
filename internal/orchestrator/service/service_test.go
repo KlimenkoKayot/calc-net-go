@@ -46,7 +46,6 @@ func TestService(t *testing.T) {
 	t.Run("OperationTime", func(t *testing.T) {
 		testServiceOperationTime(t, config)
 	})
-
 }
 
 func testServiceNewExpression(t *testing.T, config *config.Config) {
@@ -69,6 +68,22 @@ func testServiceNewExpression(t *testing.T, config *config.Config) {
 		},
 		{
 			Value:    "2+*2",
+			Expected: nil,
+			IsError:  true,
+		},
+		{
+			Value:    "2+(3+5)",
+			Expected: nil,
+			IsError:  false,
+		},
+		// Выражение задано корректно, но упадет на этапе подсчета
+		{
+			Value:    "1/0",
+			Expected: nil,
+			IsError:  false,
+		},
+		{
+			Value:    "1 o 0",
 			Expected: nil,
 			IsError:  true,
 		},
@@ -97,6 +112,11 @@ func testServiceAddExpression(t *testing.T, config *config.Config) {
 			Expected: nil,
 			IsError:  true,
 		},
+		{
+			Value:    "2 o 9",
+			Expected: nil,
+			IsError:  true,
+		},
 	}
 
 	for _, test := range testCases {
@@ -117,12 +137,15 @@ func testServiceGetAllExpressions(t *testing.T, config *config.Config) {
 	_, _ = service.AddExpression("2+2")
 	_, _ = service.AddExpression("3*3")
 
+	// Добавляем ответы
+	service.Answers[[64]byte{}] = 3
+
 	// Получаем все выражения
 	expressions := service.GetAllExpressions()
 
 	// Проверяем количество выражений
-	if len(expressions) != 2 {
-		t.Errorf("want 2 expressions, got %d", len(expressions))
+	if len(expressions) != 3 {
+		t.Errorf("want 3 expressions, got %d", len(expressions))
 	}
 }
 

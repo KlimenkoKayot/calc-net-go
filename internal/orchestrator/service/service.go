@@ -75,12 +75,10 @@ func (s *OrchestratorService) NewExpression(expression string) (*models.Expressi
 				IsOperation: true,
 				Operation:   []rune(val.(string))[0],
 			})
-		case float64:
+		default:
 			list.Add(&customList.NodeData{
 				Value: val.(float64),
 			})
-		default:
-			return nil, ErrInvalidSymbolRPN
 		}
 	}
 	// Подсчитываем hash, для добавления нового выражения в сервис
