@@ -7,47 +7,62 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
+	"github.com/klimenkokayot/avito-go/libs/jwt"
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
 	handler "github.com/klimenkokayot/calc-net-go/internal/orchestrator/server/handler"
 )
 
 // Структура сервера
 type Server struct {
-	Config *config.Config
+	Config       *config.Config
+	handler      *handler.OrchestratorHandler
+	tokenManager *jwt.TokenManager
+	mux          *mux.Router
 }
 
 // Создание нового экземпляра сервера
-func NewServer() (*Server, error) {
+func NewServer(handler *handler.OrchestratorHandler) (*Server, error) {
 	// Создаем конфиг
 	config, err := config.NewConfig()
 	if err != nil {
 		return nil, err
 	}
+	mux := mux.NewRouter()
 	return &Server{
-		config,
+		Config:  config,
+		handler: handler,
+		mux:     mux,
 	}, nil
 }
 
 // Запуск сервера, использует роутер gorilla/mux
 func (s *Server) Run() error {
-	mux := mux.NewRouter()
-	handler := handler.NewOrchestratorHandler(s.Config)
 
+	s.setupMiddlewares()
+	s.setupRoutes()
+
+	log.Printf("Server started at port :%d\n", s.Config.Port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), s.mux); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Server) setupMiddlewares() error {
+	s.mux.Use()
+}
+
+func (s *Server) setupRoutes() error {
 	// Разные endpoint`ы
-	mux.HandleFunc("/", handler.Index)
-	mux.HandleFunc("/api/v1/calculate", handler.NewExpression)
-	mux.HandleFunc("/api/v1/expressions", handler.Expressions)
-	mux.HandleFunc("/api/v1/expressions/{id}", handler.Expression)
-	mux.HandleFunc("/internal/task", handler.PostTask).Methods("POST")
-	mux.HandleFunc("/internal/task", handler.GetTask).Methods("GET")
+	s.mux.HandleFunc("/", s.handler.Index)
+	s.mux.HandleFunc("/api/v1/calculate", s.handler.NewExpression)
+	s.mux.HandleFunc("/api/v1/expressions", s.handler.Expressions)
+	s.mux.HandleFunc("/api/v1/expressions/{id}", s.handler.Expression)
+	s.mux.HandleFunc("/internal/task", s.handler.PostTask).Methods("POST")
+	s.mux.HandleFunc("/internal/task", s.handler.GetTask).Methods("GET")
 
 	staticDir := filepath.Join(".", "web", "static")
 	fs := http.FileServer(http.Dir(staticDir))
-	mux.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
-
-	log.Printf("Server started at port :%d\n", s.Config.Port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.Config.Port), mux); err != nil {
-		return err
-	}
+	s.mux.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 	return nil
 }
