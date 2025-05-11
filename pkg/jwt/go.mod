@@ -1,4 +1,4 @@
-module github.com/klimenkokayot/avito-go/libs/jwt
+module github.com/klimenkokayot/calc-net-go/pkg/jwt
 
 go 1.23.7
 

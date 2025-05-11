@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
-	"github.com/klimenkokayot/avito-go/libs/jwt"
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
 	handler "github.com/klimenkokayot/calc-net-go/internal/orchestrator/server/handler"
+	jwt "github.com/klimenkokayot/calc-net-go/pkg/jwt"
 )
 
 // Структура сервера
@@ -49,7 +49,6 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) setupMiddlewares() error {
-	s.mux.Use()
 }
 
 func (s *Server) setupRoutes() error {

@@ -3,7 +3,7 @@ package jwt
 import (
 	"net/http"
 
-	"github.com/klimenkokayot/avito-go/libs/jwt"
+	"github.com/klimenkokayot/calc-net-go/pkg/jwt"
 )
 
 type TokenMiddleware struct {
