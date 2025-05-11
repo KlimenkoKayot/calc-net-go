@@ -9,24 +9,17 @@ import (
 	"github.com/gorilla/mux"
 	config "github.com/klimenkokayot/calc-net-go/internal/orchestrator/config"
 	handler "github.com/klimenkokayot/calc-net-go/internal/orchestrator/server/handler"
-	jwt "github.com/klimenkokayot/calc-net-go/pkg/jwt"
 )
 
 // Структура сервера
 type Server struct {
-	Config       *config.Config
-	handler      *handler.OrchestratorHandler
-	tokenManager *jwt.TokenManager
-	mux          *mux.Router
+	Config  *config.Config
+	handler *handler.OrchestratorHandler
+	mux     *mux.Router
 }
 
 // Создание нового экземпляра сервера
-func NewServer(handler *handler.OrchestratorHandler) (*Server, error) {
-	// Создаем конфиг
-	config, err := config.NewConfig()
-	if err != nil {
-		return nil, err
-	}
+func NewServer(config *config.Config, handler *handler.OrchestratorHandler) (*Server, error) {
 	mux := mux.NewRouter()
 	return &Server{
 		Config:  config,
@@ -38,7 +31,6 @@ func NewServer(handler *handler.OrchestratorHandler) (*Server, error) {
 // Запуск сервера, использует роутер gorilla/mux
 func (s *Server) Run() error {
 
-	s.setupMiddlewares()
 	s.setupRoutes()
 
 	log.Printf("Server started at port :%d\n", s.Config.Port)
@@ -46,9 +38,6 @@ func (s *Server) Run() error {
 		return err
 	}
 	return nil
-}
-
-func (s *Server) setupMiddlewares() error {
 }
 
 func (s *Server) setupRoutes() error {

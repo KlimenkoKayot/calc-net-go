@@ -22,12 +22,14 @@ type Expressions struct {
 // Структура обработчика, требует новый сервис
 type OrchestratorHandler struct {
 	Service *service.OrchestratorService
+	config  *config.Config
 }
 
 // Создает экземпляр обработчика
-func NewOrchestratorHandler(config *config.Config) *OrchestratorHandler {
+func NewOrchestratorHandler(config *config.Config, service *service.OrchestratorService) *OrchestratorHandler {
 	return &OrchestratorHandler{
-		Service: service.NewOrchestratorService(config),
+		Service: service,
+		config:  config,
 	}
 }
 

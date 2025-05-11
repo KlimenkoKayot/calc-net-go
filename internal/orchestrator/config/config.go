@@ -1,21 +1,26 @@
 package orchestrator
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 // Конфиг для работы оркестратора
 type Config struct {
-	Port                  int    // порт для запуска сервера
-	TimeAdditionMs        uint64 // время выполнения операции сложения в миллисекундах
-	TimeSubtractionMs     uint64 // время выполнения операции вычитания в миллисекундах
-	TimeMultiplicationsMs uint64 // время выполнения операции умножения в миллисекундах
-	TimeDivisionsMs       uint64 // время выполнения операции деления в миллисекундах
+	Port                   int    // порт для запуска сервера
+	TimeAdditionMs         uint64 // время выполнения операции сложения в миллисекундах
+	TimeSubtractionMs      uint64 // время выполнения операции вычитания в миллисекундах
+	TimeMultiplicationsMs  uint64 // время выполнения операции умножения в миллисекундах
+	TimeDivisionsMs        uint64 // время выполнения операции деления в миллисекундах
+	JwtSecretKey           string
+	AccessTokenExpiration  time.Duration
+	RefreshTokenExpiration time.Duration
 }
 
 // Загрузка .env из любой точки входа в проекте
@@ -92,6 +97,24 @@ func NewConfig() (*Config, error) {
 	if TimeDivisionsMs < 0 {
 		return nil, ErrInvalidTime
 	}
+	jwtSecretKey := os.Getenv("JWT_SECRET")
+	if jwtSecretKey == "" {
+		return nil, fmt.Errorf("empty jwt key")
+	}
+
+	accessTokenExpirationString := os.Getenv("ACCESS_TOKEN_EXPIRATION_TIMEOUT")
+	accessTokenExpirationInt, err := strconv.Atoi(accessTokenExpirationString)
+	if err != nil {
+		return nil, err
+	}
+	accessTokenExpiration := time.Minute * time.Duration(accessTokenExpirationInt)
+
+	refreshTokenExpirationString := os.Getenv("REFRESH_TOKEN_EXPIRATION_TIMEOUT")
+	refreshTokenExpirationInt, err := strconv.Atoi(refreshTokenExpirationString)
+	if err != nil {
+		return nil, err
+	}
+	refreshTokenExpiration := time.Hour * time.Duration(refreshTokenExpirationInt)
 
 	return &Config{
 		Port,
@@ -99,5 +122,8 @@ func NewConfig() (*Config, error) {
 		uint64(TimeSubtractionMs),
 		uint64(TimeMultiplicationsMs),
 		uint64(TimeDivisionsMs),
+		jwtSecretKey,
+		accessTokenExpiration,
+		refreshTokenExpiration,
 	}, nil
 }
